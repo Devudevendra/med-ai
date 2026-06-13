@@ -20,38 +20,10 @@ app = FastAPI(
 
 Base.metadata.create_all(bind=engine)
 
-# ── CORS ───────────────────────────────────────────────────────────────────────
-_extra_origin = os.environ.get("FRONTEND_URL", "")
-
-ALLOWED_ORIGINS = [
-    "https://med-ai-brown.vercel.app",          # Production Vercel frontend
-    *([_extra_origin] if _extra_origin else []), # Extra origin from env var
-    # ── Hosted backends ───────────────────────────────────────
-    "https://*.hf.space",
-    "https://*.pythonanywhere.com",
-    # ── Local development ─────────────────────────────────────
-    "http://localhost:5173",
-    "http://localhost:5174",
-    "http://localhost:5175",
-    "http://localhost:5176",
-    "http://localhost:5177",
-    "http://localhost:5178",
-    "http://localhost:5179",
-    "http://localhost:5180",
-    "http://127.0.0.1:5173",
-    "http://127.0.0.1:5174",
-    "http://127.0.0.1:5175",
-    "http://127.0.0.1:5176",
-    "http://127.0.0.1:5177",
-    "http://127.0.0.1:5178",
-    "http://127.0.0.1:5179",
-    "http://127.0.0.1:5180",
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
