@@ -12,7 +12,9 @@ import { Assessment } from "./pages/Assessment";
 import { AiAnalysis } from "./pages/AiAnalysis";
 import { PatientHistory } from "./pages/PatientHistory";
 
-const BASE = "";
+// In production (Vercel), VITE_API_URL points to the Render backend.
+// Locally, it's empty so Vite's proxy forwards requests to :8000.
+const BASE = import.meta.env.VITE_API_URL || "";
 
 export default function App() {
   const [activeTab, setActiveTab]             = useState("dashboard");
