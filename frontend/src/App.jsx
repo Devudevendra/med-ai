@@ -12,10 +12,8 @@ import { Assessment } from "./pages/Assessment";
 import { AiAnalysis } from "./pages/AiAnalysis";
 import { PatientHistory } from "./pages/PatientHistory";
 
-// In production (Vercel), VITE_API_URL points to the backend.
-// Production backend: https://med-ai-fred.vercel.app
-// Locally, it's empty so Vite's proxy forwards requests to :8000.
-const BASE = import.meta.env.VITE_API_URL || "";
+// Backend URL — VITE_API_URL env var overrides this in other environments
+const BASE = import.meta.env.VITE_API_URL || "https://med-ai-fred.vercel.app";
 
 export default function App() {
   const [activeTab, setActiveTab]             = useState("dashboard");
