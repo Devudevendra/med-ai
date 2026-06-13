@@ -12,7 +12,8 @@ import { Assessment } from "./pages/Assessment";
 import { AiAnalysis } from "./pages/AiAnalysis";
 import { PatientHistory } from "./pages/PatientHistory";
 
-// In production (Vercel), VITE_API_URL points to the Render backend.
+// In production (Vercel), VITE_API_URL points to the backend.
+// Production backend: https://med-ai-fred.vercel.app
 // Locally, it's empty so Vite's proxy forwards requests to :8000.
 const BASE = import.meta.env.VITE_API_URL || "";
 
