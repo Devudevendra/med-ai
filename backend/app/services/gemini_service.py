@@ -1,18 +1,17 @@
 """
-Gemini AI service — uses pure HTTP REST (no gRPC), works on Vercel.
+Gemini AI service — uses pure HTTP REST, works on Vercel free tier.
 Set GEMINI_API_KEY in your Vercel backend environment variables.
 """
 import os
-import time
 import requests
 
 API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
-# Models tried in order — automatically falls back if one is rate-limited
+# Models tried in order — falls back if one is rate-limited
 MODELS = [
-    "gemini-1.5-flash",       # Best free quota: 15 RPM, 1500 RPD
-    "gemini-1.5-flash-8b",    # Higher quota, smaller model
-    "gemini-2.0-flash",       # Latest model, stricter quota
+    "gemini-1.5-flash",
+    "gemini-1.5-flash-8b",
+    "gemini-2.0-flash",
 ]
 
 GEMINI_BASE = (
@@ -25,7 +24,7 @@ def analyze_symptom(department: str, symptom: str, severity: str) -> str:
     if not API_KEY:
         return (
             "⚠️ AI analysis unavailable — GEMINI_API_KEY is not configured. "
-            "Please set it in your Vercel backend environment variables."
+            "Please set it in your Vercel backend project's Environment Variables."
         )
 
     prompt = f"""You are a professional medical triage assistant reviewing a patient case.
@@ -35,47 +34,55 @@ Patient Presentation:
 - Symptom: {symptom}
 - Severity: {severity}
 
-Please provide a concise, structured assessment with the following sections:
+Please provide a concise, structured assessment:
 
 1. **Risk Level** — (Low / Medium / High / Critical)
 2. **Possible Cause(s)** — Most likely diagnosis or differential
 3. **Recommended Specialist** — Which type of doctor to consult
 4. **Immediate Advice** — What the patient should do right now
 
-Keep your response professional, clear, and under 150 words. Do NOT provide a definitive diagnosis."""
+Keep your response professional, clear, and under 150 words."""
 
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
 
-    # ── Try each model, falling back on 429 rate limits ───────
+    # ── Try each model once (keep total time under Vercel's 10s limit) ─────
     for model in MODELS:
         url = GEMINI_BASE.format(model=model) + f"?key={API_KEY}"
-        for attempt in range(2):          # 2 tries per model
-            try:
-                response = requests.post(url, json=payload, timeout=30)
+        try:
+            response = requests.post(
+                url,
+                json=payload,
+                timeout=7,          # Stay well under Vercel's 10s function limit
+            )
 
-                if response.status_code == 429:
-                    time.sleep(2 ** attempt)  # wait 1s then 2s
-                    continue                   # retry same model
+            # Rate limited — try next model immediately (no sleep on Vercel)
+            if response.status_code == 429:
+                continue
 
-                response.raise_for_status()
-                data = response.json()
-                return data["candidates"][0]["content"]["parts"][0]["text"]
+            # Bad API key or invalid request
+            if response.status_code == 400:
+                error_body = response.json() if response.content else {}
+                msg = error_body.get("error", {}).get("message", "Bad Request")
+                return f"⚠️ API Key error: {msg}. Please check your GEMINI_API_KEY in Vercel."
 
-            except requests.exceptions.Timeout:
-                return "⏱️ AI analysis timed out. Please try again."
+            # Auth error
+            if response.status_code == 403:
+                return "⚠️ API Key is invalid or expired. Please update GEMINI_API_KEY in Vercel."
 
-            except requests.exceptions.HTTPError as e:
-                code = e.response.status_code if e.response else "?"
-                if code == 429:
-                    break   # 429 again → try next model
-                return f"⚠️ AI service error ({code}). Please try again."
+            response.raise_for_status()
+            data = response.json()
+            return data["candidates"][0]["content"]["parts"][0]["text"]
 
-            except Exception:
-                return "⚠️ Unexpected error. Please try again."
+        except requests.exceptions.Timeout:
+            continue   # Try next model
 
-        # rate-limited on this model → try the next one immediately
+        except requests.exceptions.ConnectionError:
+            return "⚠️ Cannot reach Gemini API. Check network connectivity."
+
+        except Exception as e:
+            continue   # Try next model
 
     return (
-        "⚠️ AI is temporarily rate-limited. "
+        "⚠️ All AI models are currently busy. "
         "Please wait 1 minute and try again."
     )
