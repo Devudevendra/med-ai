@@ -205,6 +205,56 @@ export default function App() {
     }
     setAiLoading(true);
     setAiResult("");
+
+    const GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY || "";
+    const prompt = `You are a professional medical triage assistant reviewing a patient case.
+
+Patient Presentation:
+- Department: ${assessmentForm.department}
+- Symptom: ${assessmentForm.symptom}
+- Severity: ${assessmentForm.severity}
+
+Please provide a concise, structured assessment:
+
+1. **Risk Level** — (Low / Medium / High / Critical)
+2. **Possible Cause(s)** — Most likely diagnosis or differential
+3. **Recommended Specialist** — Which type of doctor to consult
+4. **Immediate Advice** — What the patient should do right now
+
+Keep your response professional, clear, and under 150 words. Do NOT provide a definitive diagnosis.`;
+
+    // ── Try direct Gemini API call from browser (no backend timeout) ──────
+    if (GEMINI_KEY) {
+      try {
+        const models = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-flash-8b"];
+        let result = null;
+        for (const model of models) {
+          const res = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_KEY}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+            }
+          );
+          if (res.status === 429) continue;       // rate limited → try next model
+          if (!res.ok) break;                      // other error → fall through to backend
+          const data = await res.json();
+          result = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (result) break;
+        }
+        if (result) {
+          setAiResult(result);
+          showToast("AI analysis complete ✅", "success");
+          setAiLoading(false);
+          return;
+        }
+      } catch {
+        // Network error — fall through to backend
+      }
+    }
+
+    // ── Fallback: call backend /ai-analysis endpoint ───────────────────────
     try {
       const res = await axios.post(`${BASE}/ai-analysis`, {
         department: assessmentForm.department,
@@ -212,13 +262,15 @@ export default function App() {
         severity:   assessmentForm.severity,
       });
       setAiResult(res.data.analysis);
-      showToast("AI analysis complete", "success");
+      showToast("AI analysis complete ✅", "success");
     } catch {
-      showToast("AI analysis failed. Check backend connection.", "error");
+      showToast("AI analysis failed. Please try again.", "error");
+      setAiResult("⚠️ Could not get AI analysis. Please try again in a moment.");
     } finally {
       setAiLoading(false);
     }
   };
+
 
   const navItems = [
     { id: "dashboard",  label: "Dashboard",   icon: ICONS.dashboard  },
