@@ -227,10 +227,10 @@ Keep your response professional, clear, and under 150 words. Do NOT provide a de
     if (GEMINI_KEY) {
       try {
         const models = [
-          "gemini-2.0-flash",           // Latest stable
-          "gemini-2.0-flash-lite",      // Lightweight, high quota
-          "gemini-1.5-flash-latest",    // 1.5 latest alias
-          "gemini-1.5-flash-8b",        // Small fast model
+          "gemini-2.5-flash",              // Latest — separate quota
+          "gemini-2.5-flash-lite-preview-06-17", // 2.5 lite — highest free quota
+          "gemini-2.0-flash",              // Stable
+          "gemini-2.0-flash-lite",         // Lightweight
         ];
         let result = null;
         for (const model of models) {
