@@ -226,22 +226,33 @@ Keep your response professional, clear, and under 150 words. Do NOT provide a de
     // ── Try direct Gemini API call from browser (no backend timeout) ──────
     if (GEMINI_KEY) {
       try {
-        const models = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-flash-8b"];
+        const models = [
+          "gemini-2.0-flash",           // Latest stable
+          "gemini-2.0-flash-lite",      // Lightweight, high quota
+          "gemini-1.5-flash-latest",    // 1.5 latest alias
+          "gemini-1.5-flash-8b",        // Small fast model
+        ];
         let result = null;
         for (const model of models) {
-          const res = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_KEY}`,
-            {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_KEY}`;
+          console.log(`[AI] Trying model: ${model}`);
+          const res = await fetch(url, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
             }
           );
-          if (res.status === 429) continue;       // rate limited → try next model
-          if (!res.ok) break;                      // other error → fall through to backend
+          console.log(`[AI] ${model} → status: ${res.status}`);
+          if (res.status === 429) { console.log(`[AI] Rate limited, trying next`); continue; }
+          if (res.status === 404) { console.log(`[AI] Model not found, trying next`); continue; }
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            console.error(`[AI] Error:`, err);
+            break;
+          }
           const data = await res.json();
           result = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (result) break;
+          if (result) { console.log(`[AI] ✅ Success with ${model}`); break; }
         }
         if (result) {
           setAiResult(result);
@@ -249,10 +260,14 @@ Keep your response professional, clear, and under 150 words. Do NOT provide a de
           setAiLoading(false);
           return;
         }
-      } catch {
+      } catch (err) {
+        console.error("[AI] Fetch error:", err);
         // Network error — fall through to backend
       }
+    } else {
+      console.warn("[AI] VITE_GEMINI_API_KEY not set — using backend fallback");
     }
+
 
     // ── Fallback: call backend /ai-analysis endpoint ───────────────────────
     try {
